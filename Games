@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indian Cars Driving Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+    #menu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-size: 20px;
+      display: none;
+    }
+    #menu button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="menu">
+  <h1>Select Your Car</h1>
+  <button onclick="startGame('scorpio')">Mahindra Scorpio</button>
+  <button onclick="startGame('kiger')">Renault Kiger</button>
+  <button onclick="startGame('ertiga')">Suzuki Ertiga</button>
+  <button onclick="startGame('ambassador')">Ambassador Taxi</button>
+</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// Car Images
+const carImages = {
+  scorpio: new Image(),
+  kiger: new Image(),
+  ertiga: new Image(),
+  ambassador: new Image()
+};
+carImages.scorpio.src = 'https://example.com/scorpio.png'; // Replace with actual URL of Mahindra Scorpio image
+carImages.kiger.src = 'https://example.com/kiger.png'; // Replace with actual URL of Renault Kiger image
+carImages.ertiga.src = 'https://example.com/ertiga.png'; // Replace with actual URL of Suzuki Ertiga image
+carImages.ambassador.src = 'https://example.com/ambassador.png'; // Replace with actual URL of Ambassador Taxi image
+
+// Game variables
+let gameStarted = false;
+let car = {};
+let aiCars = [];
+let obstacles = [];
+let bridges = [];
+let controls = { up: false, down: false, left: false, right: false, brake: false };
+
+// Menu visibility
+document.getElementById("menu").style.display = "block";
+
+// Home Screen Menu: Selecting a car
+function startGame(carType) {
+  gameStarted = true;
+  document.getElementById("menu").style.display = "none"; // Hide menu
+
+  // Initialize player's car
+  car = {
+    x: canvas.width / 2 - 25,
+    y: canvas.height - 150,
+    width: 60,
+    height: 120,
+    color: carType === 'scorpio' ? 'green' : carType === 'kiger' ? 'white' : carType === 'ertiga' ? 'red' : 'yellow',
+    image: carImages[carType],
+    speed: 0,
+    maxSpeed: 10,
+    acceleration: 0.2,
+    brakePower: 0.3,
+    health: 100,
+    rotation: 0,
+    steerAngle: 0,
+    maxSteerAngle: 5
+  };
+
+  // Initialize AI cars
+  aiCars = [];
+  for (let i = 0; i < 100; i++) {
+    aiCars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      width: 60,
+      height: 120,
+      speed: Math.random() * 5 + 3,
+      image: carImages.ambassador,
+      health: 100,
+      rotation: Math.random() * 360
+    });
+  }
+
+  // Create bridges
+  bridges = [
+    { x: 100, y: 300, width: 200, height: 20 },
+    { x: 500, y: 500, width: 200, height: 20 }
+  ];
+
+  // Start the game loop
+  gameLoop();
+}
+
+// Draw Car
+function drawCar(car) {
+  ctx.save();
+  ctx.translate(car.x + car.width / 2, car.y + car.height / 2);
+  ctx.rotate((car.rotation * Math.PI) / 180);
+  ctx.drawImage(car.image, -car.width / 2, -car.height / 2, car.width, car.height);
+  ctx.restore();
+}
+
+// Draw AI Cars
+function drawAICars() {
+  aiCars.forEach(aiCar => {
+    drawCar(aiCar);
+  });
+}
+
+// Draw Bridges
+function drawBridges() {
+  ctx.fillStyle = "#8B4513"; // Brown color for bridge
+  bridges.forEach(bridge => {
+    ctx.fillRect(bridge.x, bridge.y, bridge.width, bridge.height);
+  });
+}
+
+// Handle player car movement
+function updateCar() {
+  if (controls.up) car.speed += car.acceleration;
+  if (controls.down) car.speed -= car.brakePower;
+  if (controls.left) car.rotation -= car.steerAngle;
+  if (controls.right) car.rotation += car.steerAngle;
+
+  car.speed = Math.max(0, Math.min(car.speed, car.maxSpeed));
+  const radianAngle = (car.rotation * Math.PI) / 180;
+  car.x += car.speed * Math.sin(radianAngle);
+  car.y -= car.speed * Math.cos(radianAngle);
+}
+
+// Handle AI car movement
+function updateAICars() {
+  aiCars.forEach(aiCar => {
+    aiCar.rotation += Math.random() * 10 - 5; // Random turning
+    const radianAngle = (aiCar.rotation * Math.PI) / 180;
+    aiCar.x += aiCar.speed * Math.sin(radianAngle);
+    aiCar.y -= aiCar.speed * Math.cos(radianAngle);
+  });
+}
+
+// Collision detection
+function checkCollisions() {
+  aiCars.forEach(aiCar => {
+    if (
+      aiCar.x < car.x + car.width &&
+      aiCar.x + aiCar.width > car.x &&
+      aiCar.y < car.y + car.height &&
+      aiCar.y + aiCar.height > car.y
+    ) {
+      aiCar.health -= 10;
+      car.health -= 10; // Damage to both cars
+    }
+  });
+
+  bridges.forEach(bridge => {
+    if (
+      car.x < bridge.x + bridge.width &&
+      car.x + car.width > bridge.x &&
+      car.y < bridge.y + bridge.height &&
+      car.y + car.height > bridge.y
+    ) {
+      // Handle collisions with bridges (e.g., stop the car or create effects)
+      car.speed = 0;
+      car.health -= 20;
+    }
+  });
+}
+
+// Draw the environment
+function drawEnvironment() {
+  ctx.fillStyle = "#A9A9A9"; // Road color
+  ctx.fillRect(0, 0, canvas.width, canvas.height); // Road background
+  drawBridges();
+}
+
+// Game loop
+function gameLoop() {
+  if (!gameStarted) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawEnvironment();
+  updateCar();
+  updateAICars();
+  drawCar(car);
+  drawAICars();
+  checkCollisions();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Event listeners for controls
+window.addEventListener('keydown', (e) => {
+  if (e.key === "ArrowUp") controls.up = true;
+  if (e.key === "ArrowDown") controls.down = true;
+  if (e.key === "ArrowLeft") controls.left = true;
+  if (e.key === "ArrowRight") controls.right = true;
+  if (e.key === " ") controls.brake = true; // Brake
+});
+
+window.addEventListener('keyup', (e) => {
+  if (e.key === "ArrowUp") controls.up = false;
+  if (e.key === "ArrowDown") controls.down = false;
+  if (e.key === "ArrowLeft") controls.left = false;
+  if (e.key === "ArrowRight") controls.right = false;
+  if (e.key === " ") controls.brake = false; // Brake
+});
+
+</script>
+</body>
+</html>
